@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Skip the Wait - Smart Dining System</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <h1>🍽️ Skip the Wait - Smart Dining System</h1>
+            <p>Table Allocation Prototype</p>
+            <button id="resetBtn" class="reset-btn">Reset All Tables</button>
+        </header>
+
+        <!-- Main Content - Split Layout -->
+        <div class="main-content">
+            <!-- Left Panel: Table Layout -->
+            <div class="left-panel">
+                <h2>Restaurant Layout</h2>
+                <div class="table-info">
+                    <div class="legend">
+                        <span class="legend-item">
+                            <span class="status-dot available"></span>
+                            Available
+                        </span>
+                        <span class="legend-item">
+                            <span class="status-dot booked"></span>
+                            Booked
+                        </span>
+                    </div>
+                </div>
+                <div id="tableLayout" class="table-layout">
+                    <!-- Tables will be dynamically rendered here -->
+                </div>
+            </div>
+
+            <!-- Right Panel: Booking Details -->
+            <div class="right-panel">
+                <h2>Booking Panel</h2>
+                
+                <!-- Booking Form -->
+                <div id="bookingForm" class="booking-form">
+                    <h3>New Booking (Auto-Allocation Only)</h3>
+                    <form id="bookForm">
+                        <div class="form-group">
+                            <label for="customerName">Customer Name:</label>
+                            <input type="text" id="customerName" name="customerName" required placeholder="Enter customer name">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="groupSize">Number of Guests:</label>
+                            <input type="number" id="groupSize" name="groupSize" min="1" max="10" required placeholder="Enter group size">
+                        </div>
+                        
+                        <div class="form-info">
+                            <p>ℹ️ System will automatically allocate the best suitable table using Best-Fit Algorithm</p>
+                            <p>ℹ️ If restaurant is full, you'll be added to the waiting queue</p>
+                        </div>
+                        
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary" id="bookBtn">Submit Booking</button>
+                            <button type="button" class="btn btn-cancel" id="clearBtn">Clear Form</button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Booking Status -->
+                <div id="bookingStatus" class="booking-status hidden">
+                    <h3>Booking Confirmation ✓</h3>
+                    <div id="confirmationDetails" class="confirmation-details">
+                        <!-- Confirmation details will be shown here -->
+                    </div>
+                    <button class="btn btn-primary" id="newBookingBtn">New Booking</button>
+                </div>
+
+                <!-- Queue Status -->
+                <div id="queueStatus" class="queue-status hidden">
+                    <h3>⏳ Added to Waiting Queue</h3>
+                    <div id="queueDetails" class="queue-details">
+                        <!-- Queue details will be shown here -->
+                    </div>
+                    <button class="btn btn-primary" id="newQueueBookingBtn">New Booking</button>
+                </div>
+
+                <!-- Waiting Queue List -->
+                <div class="waiting-queue">
+                    <h3>⏳ Waiting Queue</h3>
+                    <div id="queueList" class="queue-list">
+                        <!-- Waiting queue will be listed here -->
+                    </div>
+                </div>
+
+                <!-- Active Bookings List -->
+                <div class="active-bookings">
+                    <h3>Active Bookings</h3>
+                    <div id="bookingsList" class="bookings-list">
+                        <!-- Active bookings will be listed here -->
+                    </div>
+                </div>
+
+                <!-- System Information -->
+                <div class="system-info">
+                    <h3>Backend Logic Info</h3>
+                    <div class="info-box">
+                        <p><strong>Algorithm:</strong> FIFO-Compatible Best-Fit</p>
+                        <p><strong>Rule:</strong> Allocates the smallest available table that fits the group</p>
+                        <p><strong>Database:</strong> SQLite</p>
+                        <p><strong>Backend:</strong> Flask (Python)</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="toast" class="toast hidden">
+        <span id="toastMessage"></span>
+    </div>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>

@@ -1,169 +1,33 @@
 """
-DEPRECATED - Old app.py file
-============================
-
-This file has been replaced by the modular structure in smart_dining/
-
-To run the application, use:
-    python smart_dining/app.py
-
-Or from the project root:
-    cd smart_dining
-    python app.py
-
-The new structure is:
-smart_dining/
-├── app.py                  # Main Flask app (routes only)
-├── config.py               # Algorithm configuration constants
-├── database.py             # DB connection & initialization
-├── models.py               # DB schema-related helpers
-├── queue_manager.py        # Queue update & processing logic
-├── algorithm/
-│   ├── priority.py         # Priority score logic
-│   ├── single_table.py     # Best-fit single allocation
-│   ├── merging.py          # Sequential merging logic
-│   └── allocator.py        # Main ASP-BFA algorithm
-├── templates/
-│   └── index.html
-└── static/
-    ├── script.js
-    └── style.css
-
-NOTE: You can safely delete this file (app.py) from the root directory.
-      The old templates/ and static/ folders in root can also be deleted.
+Smart Dining System - Main Flask Application
+=============================================
+ASP-BFA (Adaptive Spatial Priority Best-Fit Allocation) Algorithm
+Routes only - business logic is in separate modules.
 """
 
-print("\n" + "=" * 70)
-print("⚠️  DEPRECATED FILE")
-print("=" * 70)
-print("\nThis app.py file is outdated!")
-print("\nPlease run the new modular version instead:")
-print("    python smart_dining/app.py")
-print("\nOr navigate to the smart_dining folder:")
-print("    cd smart_dining")
-print("    python app.py")
-print("\n" + "=" * 70)
-print("\nYou can safely delete this file and the old templates/static folders.")
-print("=" * 70 + "\n")
+from flask import Flask, render_template, request, jsonify
+from flask_cors import CORS
+from datetime import datetime
+
+from database import get_db_connection, init_db
+from models import get_total_restaurant_tables, get_max_consecutive_tables
+from algorithm.allocator import allocate_table_asp_bfa
+from queue_manager import process_queue_asp_bfa
+from config import (
+    WEIGHT_WAITING_TIME,
+    WEIGHT_GROUP_SIZE,
+    WAIT_THRESHOLD,
+    HIGH_PRIORITY_BONUS,
+    RUSH_HOUR_QUEUE_LIMIT,
+    RUSH_HOUR_WEIGHT_MULTIPLIER,
+    ADJACENCY_ONLY
+)
+
+app = Flask(__name__)
+CORS(app)
 
 
-def get_total_restaurant_tables(cursor):
-    """Get total number of tables in the restaurant"""
-    cursor.execute('SELECT COUNT(*) FROM tables')
-    return cursor.fetchone()[0]
-
-
-def get_max_consecutive_tables(cursor):
-    """
-    Dynamically set MAX_CONSECUTIVE_TABLES based on total restaurant tables
-    This prevents memory issues and ensures realistic merging
-    
-    Logic:
-    - If total tables <= 5: can merge all tables
-    - If total tables 5-10: can merge up to 80% of tables
-    - If total tables > 10: can merge up to 70% of tables
-    """
-    total_tables = get_total_restaurant_tables(cursor)
-    
-    if total_tables <= 5:
-        return total_tables  # Can merge all small restaurants' tables
-    elif total_tables <= 10:
-        return max(2, int(total_tables * 0.8))
-    else:
-        return max(2, int(total_tables * 0.7))
-
-def get_db_connection():
-    """Create a database connection with error handling"""
-    try:
-        conn = sqlite3.connect(DATABASE, timeout=10.0)
-        conn.row_factory = sqlite3.Row
-        # Enable foreign keys
-        conn.execute('PRAGMA foreign_keys = ON')
-        return conn
-    except Exception as e:
-        print(f"[ERROR] Database connection failed: {e}")
-        raise
-
-def init_db():
-    """Initialize the database with ASP-BFA schema"""
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    
-    # Create enhanced tables table with position_index and merge_group_id
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS tables (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            table_number INTEGER UNIQUE NOT NULL,
-            seating_capacity INTEGER NOT NULL,
-            status TEXT DEFAULT 'available',
-            position_x INTEGER,
-            position_y INTEGER,
-            position_index INTEGER,
-            merge_group_id INTEGER,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    ''')
-    
-    # Create bookings table
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS bookings (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            group_id TEXT UNIQUE NOT NULL,
-            table_ids TEXT,
-            customer_name TEXT NOT NULL,
-            group_size INTEGER NOT NULL,
-            booking_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            status TEXT DEFAULT 'active',
-            merge_count INTEGER DEFAULT 0,
-            priority_score REAL DEFAULT 0.0
-        )
-    ''')
-    
-    # Create enhanced waiting queue table for ASP-BFA
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS waiting_queue (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            group_id TEXT UNIQUE NOT NULL,
-            customer_name TEXT NOT NULL,
-            group_size INTEGER NOT NULL,
-            arrival_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            waiting_time REAL DEFAULT 0,
-            priority_score REAL DEFAULT 0,
-            status TEXT DEFAULT 'waiting',
-            position INTEGER,
-            starvation_flag INTEGER DEFAULT 0
-        )
-    ''')
-    
-    # CLEAR ALL BOOKINGS AND QUEUE ON RESTART
-    cursor.execute('DELETE FROM bookings')
-    cursor.execute('DELETE FROM waiting_queue')
-    
-    # Reset all tables to available status and remove merge groups
-    cursor.execute('''
-        UPDATE tables
-        SET status = 'available', merge_group_id = NULL
-    ''')
-    
-    # Check if tables are already populated
-    cursor.execute('SELECT COUNT(*) FROM tables')
-    if cursor.fetchone()[0] == 0:
-        # Insert initial table data with position_index for sequential merging
-        tables_data = [
-            (1, 2, 'available', 100, 100, 0, None),
-            (2, 2, 'available', 250, 100, 1, None),
-            (3, 4, 'available', 100, 250, 2, None),
-            (4, 4, 'available', 250, 250, 3, None),
-            (5, 6, 'available', 100, 400, 4, None),
-            (6, 6, 'available', 250, 400, 5, None)
-        ]
-        cursor.executemany('''
-            INSERT INTO tables (table_number, seating_capacity, status, position_x, position_y, position_index, merge_group_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        ''', tables_data)
-    
-    conn.commit()
-    conn.close()
+# ==================== Routes ====================
 
 @app.route('/')
 def index():
@@ -193,434 +57,6 @@ def health_check():
             'status': 'unhealthy',
             'error': str(e)
         }), 500
-
-
-
-# ==================== ASP-BFA Core Algorithm Functions ====================
-
-def get_waiting_queue(cursor):
-    """Retrieve all waiting groups with current waiting time"""
-    cursor.execute('''
-        SELECT id, group_id, customer_name, group_size, arrival_time, 
-               priority_score, starvation_flag
-        FROM waiting_queue
-        WHERE status = 'waiting'
-        ORDER BY priority_score DESC, arrival_time ASC
-    ''')
-    return cursor.fetchall()
-
-
-def calculate_priority_score(group_size, waiting_time_seconds, is_starving=False):
-    """
-    Calculate ASP-BFA priority score
-    
-    Formula:
-    priority_score = (waiting_time × W1) + (group_size × W2)
-    if starving: priority_score += HIGH_PRIORITY_BONUS
-    """
-    base_score = (waiting_time_seconds * WEIGHT_WAITING_TIME) + (group_size * WEIGHT_GROUP_SIZE)
-    
-    if is_starving:
-        base_score += HIGH_PRIORITY_BONUS
-    
-    return base_score
-
-
-def detect_rush_hour(cursor):
-    """
-    Detect if system is in rush hour based on queue length
-    Returns adjusted weight_waiting_time
-    """
-    cursor.execute('SELECT COUNT(*) FROM waiting_queue WHERE status = "waiting"')
-    queue_length = cursor.fetchone()[0]
-    
-    if queue_length > RUSH_HOUR_QUEUE_LIMIT:
-        return WEIGHT_WAITING_TIME * RUSH_HOUR_WEIGHT_MULTIPLIER
-    
-    return WEIGHT_WAITING_TIME
-
-
-def update_queue_priority_scores(cursor, conn):
-    """Update waiting times and priority scores for all groups in queue"""
-    current_time = datetime.now()
-    
-    cursor.execute('''
-        SELECT id, group_id, group_size, arrival_time, waiting_time
-        FROM waiting_queue
-        WHERE status = 'waiting'
-    ''')
-    
-    queue_groups = cursor.fetchall()
-    w1 = detect_rush_hour(cursor)
-    
-    for group in queue_groups:
-        arrival = datetime.fromisoformat(group['arrival_time'])
-        waiting_seconds = (current_time - arrival).total_seconds()
-        
-        # Check if group is starving (exceeds wait threshold)
-        is_starving = waiting_seconds >= WAIT_THRESHOLD
-        
-        # Calculate new priority score
-        priority_score = calculate_priority_score(
-            group['group_size'],
-            waiting_seconds,
-            is_starving
-        )
-        
-        # Update the queue entry
-        cursor.execute('''
-            UPDATE waiting_queue
-            SET waiting_time = ?, priority_score = ?, starvation_flag = ?
-            WHERE id = ?
-        ''', (waiting_seconds, priority_score, 1 if is_starving else 0, group['id']))
-    
-    conn.commit()
-
-
-def find_best_single_table(cursor, group_size):
-    """
-    Step 5: Find best single table for group (Best-Fit)
-    
-    Returns:
-        Tuple (table_id, table_number, capacity, wasted_seats)
-        or None if no suitable table found
-    """
-    cursor.execute('''
-        SELECT id, table_number, seating_capacity
-        FROM tables
-        WHERE status = 'available' AND seating_capacity >= ?
-        ORDER BY seating_capacity ASC
-        LIMIT 1
-    ''', (group_size,))
-    
-    table = cursor.fetchone()
-    
-    if table:
-        wasted_seats = table['seating_capacity'] - group_size
-        return (table['id'], table['table_number'], table['seating_capacity'], wasted_seats)
-    
-    return None
-
-
-def find_sequential_table_merging(cursor, group_size):
-    """
-    Step 6: Find sequential table merging solution
-    
-    Dynamically limits merging based on total restaurant tables
-    Returns:
-        Tuple (table_list, table_numbers, total_capacity, wasted_seats, merge_count)
-        or None if no valid merge sequence found
-    """
-    # Get the maximum consecutive tables allowed (dynamic based on restaurant size)
-    max_merge = get_max_consecutive_tables(cursor)
-    
-    # Get all available tables sorted by position_index
-    cursor.execute('''
-        SELECT id, table_number, seating_capacity, position_index
-        FROM tables
-        WHERE status = 'available' AND merge_group_id IS NULL
-        ORDER BY position_index ASC
-    ''')
-    
-    available_tables = cursor.fetchall()
-    
-    if len(available_tables) < 2:
-        return None  # Need at least 2 tables to merge
-    
-    best_solution = None
-    best_wasted_seats = float('inf')
-    
-    # Try all possible contiguous sequences (limited by max_merge and restaurant table count)
-    for start_idx in range(len(available_tables)):
-        for end_idx in range(start_idx + 1, min(start_idx + max_merge + 1, len(available_tables) + 1)):
-            sequence = available_tables[start_idx:end_idx]
-            
-            # Calculate total capacity
-            total_capacity = sum(table['seating_capacity'] for table in sequence)
-            
-            if total_capacity >= group_size:
-                wasted_seats = total_capacity - group_size
-                merge_count = len(sequence)
-                
-                # Check adjacency constraint
-                if ADJACENCY_ONLY:
-                    positions = [table['position_index'] for table in sequence]
-                    is_adjacent = all(positions[i+1] - positions[i] == 1 for i in range(len(positions)-1))
-                    if not is_adjacent:
-                        continue
-                
-                # Update best solution if this is better
-                # Priority: minimize wasted seats, then minimize table count, then shortest physical distance
-                if (wasted_seats < best_wasted_seats or 
-                    (wasted_seats == best_wasted_seats and merge_count < best_solution[4] if best_solution else True)):
-                    
-                    table_ids = [table['id'] for table in sequence]
-                    table_numbers = [table['table_number'] for table in sequence]
-                    
-                    best_solution = (table_ids, table_numbers, total_capacity, wasted_seats, merge_count)
-                    best_wasted_seats = wasted_seats
-    
-    return best_solution
-
-
-def merge_tables(cursor, conn, table_ids, merge_group_id):
-    """
-    Create a merged table group
-    
-    Sets the merge_group_id for all tables in the merge
-    """
-    for table_id in table_ids:
-        cursor.execute('''
-            UPDATE tables
-            SET status = 'booked', merge_group_id = ?
-            WHERE id = ?
-        ''', (merge_group_id, table_id))
-    
-    conn.commit()
-
-
-def unmerge_tables(cursor, conn, table_ids):
-    """
-    Release tables from a merged group
-    """
-    for table_id in table_ids:
-        cursor.execute('''
-            UPDATE tables
-            SET status = 'available', merge_group_id = NULL
-            WHERE id = ?
-        ''', (table_id,))
-    
-    conn.commit()
-
-
-def allocate_table_asp_bfa(cursor, conn, customer_name, group_size):
-    """
-    Main ASP-BFA Allocation Algorithm
-    
-    Steps:
-    1. Generate unique group_id
-    2. Add to waiting queue
-    3. Update priority scores for all groups
-    4. Try best-fit single table allocation
-    5. If fails, try sequential table merging
-    6. If still fails, keep waiting (return queued=True)
-    
-    Returns:
-        Dictionary with allocation result
-    """
-    import uuid
-    
-    # Step 1: Generate unique group_id
-    group_id = str(uuid.uuid4())[:8]
-    
-    # Step 2: Add initial queue entry
-    current_time = datetime.now()
-    cursor.execute('''
-        INSERT INTO waiting_queue (group_id, customer_name, group_size, arrival_time, 
-                                   waiting_time, priority_score, status, position)
-        VALUES (?, ?, ?, ?, ?, ?, 'waiting', 1)
-    ''', (group_id, customer_name, group_size, current_time, 0, 0))
-    
-    conn.commit()
-    queue_entry_id = cursor.lastrowid
-    
-    # Step 3: Update priority scores for all waiting groups
-    update_queue_priority_scores(cursor, conn)
-    
-    # Step 4: Try best-fit single table allocation
-    single_table = find_best_single_table(cursor, group_size)
-    
-    if single_table:
-        table_id, table_number, capacity, wasted = single_table
-        
-        # Allocate the table
-        cursor.execute('''
-            UPDATE tables
-            SET status = 'booked'
-            WHERE id = ?
-        ''', (table_id,))
-        
-        # Create booking
-        cursor.execute('''
-            INSERT INTO bookings (group_id, table_ids, customer_name, group_size, 
-                                 status, merge_count, priority_score)
-            VALUES (?, ?, ?, ?, 'active', 0, ?)
-        ''', (group_id, str(table_id), customer_name, group_size, 0))
-        
-        # Remove from queue
-        cursor.execute('''
-            UPDATE waiting_queue
-            SET status = 'allocated'
-            WHERE group_id = ?
-        ''', (group_id,))
-        
-        conn.commit()
-        booking_id = cursor.lastrowid
-        
-        return {
-            'success': True,
-            'queued': False,
-            'booking_id': booking_id,
-            'group_id': group_id,
-            'allocated_tables': [table_number],
-            'merge_count': 0,
-            'table_capacity': capacity,
-            'wasted_seats': wasted,
-            'message': f'Table {table_number} allocated to {customer_name}'
-        }
-    
-    # Step 5: Try sequential table merging
-    merge_solution = find_sequential_table_merging(cursor, group_size)
-    
-    if merge_solution:
-        table_ids, table_numbers, total_capacity, wasted, merge_count = merge_solution
-        
-        # Merge tables
-        merge_tables(cursor, conn, table_ids, queue_entry_id)
-        
-        # Create booking
-        cursor.execute('''
-            INSERT INTO bookings (group_id, table_ids, customer_name, group_size, 
-                                 status, merge_count, priority_score)
-            VALUES (?, ?, ?, ?, 'active', ?, ?)
-        ''', (group_id, ','.join(map(str, table_ids)), customer_name, group_size, merge_count, 0))
-        
-        # Remove from queue
-        cursor.execute('''
-            UPDATE waiting_queue
-            SET status = 'allocated'
-            WHERE group_id = ?
-        ''', (group_id,))
-        
-        conn.commit()
-        booking_id = cursor.lastrowid
-        
-        return {
-            'success': True,
-            'queued': False,
-            'booking_id': booking_id,
-            'group_id': group_id,
-            'allocated_tables': table_numbers,
-            'merge_count': merge_count,
-            'table_capacity': total_capacity,
-            'wasted_seats': wasted,
-            'message': f'Merged {merge_count} tables ({table_numbers}) for {customer_name}'
-        }
-    
-    # Step 6: No allocation possible - add to waiting queue
-    cursor.execute('''
-        SELECT COUNT(*) FROM waiting_queue WHERE status = 'waiting'
-    ''')
-    queue_position = cursor.fetchone()[0]
-    
-    cursor.execute('''
-        UPDATE waiting_queue
-        SET position = ?
-        WHERE group_id = ?
-    ''', (queue_position, group_id))
-    
-    conn.commit()
-    
-    return {
-        'success': True,
-        'queued': True,
-        'group_id': group_id,
-        'customer_name': customer_name,
-        'group_size': group_size,
-        'queue_position': queue_position,
-        'message': f'{customer_name} added to waiting queue at position {queue_position}'
-    }
-
-
-def process_queue_asp_bfa(cursor, conn):
-    """
-    Process waiting queue with ASP-BFA algorithm
-    
-    Called whenever a table is freed up
-    Attempts to allocate tables to high-priority waiting groups
-    """
-    update_queue_priority_scores(cursor, conn)
-    
-    # Get waiting groups sorted by priority
-    waiting_groups = get_waiting_queue(cursor)
-    allocated_count = 0
-    
-    for group in waiting_groups:
-        group_id = group['group_id']
-        customer_name = group['customer_name']
-        group_size = group['group_size']
-        
-        # Try best-fit single table
-        single_table = find_best_single_table(cursor, group_size)
-        
-        if single_table:
-            table_id, table_number, capacity, wasted = single_table
-            
-            # Allocate
-            cursor.execute('''
-                UPDATE tables
-                SET status = 'booked'
-                WHERE id = ?
-            ''', (table_id,))
-            
-            # Create booking
-            cursor.execute('''
-                INSERT INTO bookings (group_id, table_ids, customer_name, group_size, 
-                                     status, merge_count, priority_score)
-                VALUES (?, ?, ?, ?, 'active', 0, ?)
-            ''', (group_id, str(table_id), customer_name, group_size, group['priority_score']))
-            
-            # Update queue
-            cursor.execute('''
-                UPDATE waiting_queue
-                SET status = 'allocated'
-                WHERE group_id = ?
-            ''', (group_id,))
-            
-            conn.commit()
-            allocated_count += 1
-            continue
-        
-        # Try sequential merging
-        merge_solution = find_sequential_table_merging(cursor, group_size)
-        
-        if merge_solution:
-            table_ids, table_numbers, total_capacity, wasted, merge_count = merge_solution
-            
-            merge_tables(cursor, conn, table_ids, group['id'])
-            
-            cursor.execute('''
-                INSERT INTO bookings (group_id, table_ids, customer_name, group_size, 
-                                     status, merge_count, priority_score)
-                VALUES (?, ?, ?, ?, 'active', ?, ?)
-            ''', (group_id, ','.join(map(str, table_ids)), customer_name, group_size, merge_count, group['priority_score']))
-            
-            cursor.execute('''
-                UPDATE waiting_queue
-                SET status = 'allocated'
-                WHERE group_id = ?
-            ''', (group_id,))
-            
-            conn.commit()
-            allocated_count += 1
-    
-    # Update queue positions for remaining groups
-    cursor.execute('''
-        SELECT id FROM waiting_queue
-        WHERE status = 'waiting'
-        ORDER BY priority_score DESC, arrival_time ASC
-    ''')
-    
-    remaining = cursor.fetchall()
-    for idx, item in enumerate(remaining):
-        cursor.execute('''
-            UPDATE waiting_queue
-            SET position = ?
-            WHERE id = ?
-        ''', (idx + 1, item['id']))
-    
-    conn.commit()
-    return {'allocated': allocated_count}
 
 
 @app.route('/api/tables', methods=['GET'])
@@ -844,6 +280,7 @@ def cancel_booking(booking_id):
         if conn:
             conn.close()
 
+
 @app.route('/api/bookings', methods=['GET'])
 def get_bookings():
     """Get all active bookings with ASP-BFA details"""
@@ -1065,6 +502,8 @@ def cancel_queue_by_group_id(group_id):
         if conn:
             conn.close()
 
+
+@app.route('/api/reset', methods=['POST'])
 def reset_system():
     """Reset all bookings, queue and make all tables available"""
     try:
@@ -1305,6 +744,7 @@ def handle_exception(e):
     }), 500
 
 
+# ==================== Application Entry Point ====================
 
 if __name__ == '__main__':
     # Initialize database with ASP-BFA schema
@@ -1349,6 +789,3 @@ if __name__ == '__main__':
     print("=" * 70)
     print()
     app.run(debug=True, host='0.0.0.0', port=5000)
-
-
-

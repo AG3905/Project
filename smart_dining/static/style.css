@@ -1,0 +1,624 @@
+/* Global Styles */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    padding: 20px;
+    color: #333;
+}
+
+.container {
+    max-width: 1400px;
+    margin: 0 auto;
+    background: white;
+    border-radius: 15px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+    overflow: hidden;
+}
+
+/* Header */
+.header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 30px;
+    text-align: center;
+    position: relative;
+}
+
+.header h1 {
+    font-size: 2.5em;
+    margin-bottom: 10px;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.header p {
+    font-size: 1.2em;
+    opacity: 0.9;
+}
+
+.reset-btn {
+    position: absolute;
+    top: 30px;
+    right: 30px;
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    border: 2px solid white;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 1em;
+    transition: all 0.3s ease;
+}
+
+.reset-btn:hover {
+    background: white;
+    color: #667eea;
+}
+
+/* Main Content - Split Layout */
+.main-content {
+    display: flex;
+    height: 720px;
+    gap: 20px;
+}
+
+.left-panel,
+.right-panel {
+    flex: 1;
+    padding: 30px;
+    height: 720px;
+    display: flex;
+    flex-direction: column;
+}
+
+.left-panel {
+    background: #f8f9fa;
+    border-right: 2px solid #e0e0e0;
+    overflow: hidden;
+}
+
+.right-panel {
+    background: white;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+.left-panel h2 {
+    flex-shrink: 0;
+    font-size: 1.8em;
+    margin-bottom: 20px;
+    color: #667eea;
+    border-bottom: 3px solid #667eea;
+    padding-bottom: 10px;
+}
+
+.right-panel h2 {
+    flex-shrink: 0;
+    font-size: 1.8em;
+    margin-bottom: 20px;
+    color: #667eea;
+    border-bottom: 3px solid #667eea;
+    padding-bottom: 10px;
+}
+
+/* Table Info */
+.table-info {
+    flex-shrink: 0;
+    margin-bottom: 20px;
+}
+
+.legend {
+    display: flex;
+    gap: 20px;
+    justify-content: center;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+    font-size: 0.95em;
+}
+
+.status-dot {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 2px solid #333;
+}
+
+.status-dot.available {
+    background: #28a745;
+}
+
+.status-dot.booked {
+    background: #dc3545;
+}
+
+/* Restaurant Layout */
+.table-layout {
+    height: 570px;
+    background: linear-gradient(to bottom, #e8eaf6 0%, #c5cae9 100%);
+    border-radius: 10px;
+    padding: 40px;
+    box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.1);
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 50px;
+    align-items: center;
+    justify-items: center;
+    flex-shrink: 0;
+}
+
+/* Table Styling */
+.restaurant-table {
+    width: 135px;
+    height: 135px;
+    border-radius: 50%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    font-weight: bold;
+    border: 4px solid #333;
+    pointer-events: none;
+}
+
+.restaurant-table.available {
+    background: linear-gradient(135deg, #28a745, #20c997);
+    color: white;
+}
+
+.restaurant-table.booked {
+    background: linear-gradient(135deg, #dc3545, #c82333);
+    color: white;
+    opacity: 0.7;
+}
+
+.table-number {
+    font-size: 1.5em;
+    margin-bottom: 5px;
+}
+
+.table-capacity {
+    font-size: 0.9em;
+    opacity: 0.9;
+}
+
+.table-status {
+    font-size: 0.75em;
+    margin-top: 5px;
+    text-transform: uppercase;
+}
+
+/* Booking Form */
+.booking-form {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 10px;
+    margin-bottom: 15px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    flex-shrink: 0;
+}
+
+.booking-form h3 {
+    color: #667eea;
+    margin-bottom: 20px;
+    font-size: 1.4em;
+}
+
+.form-info {
+    background: #e7f3ff;
+    border-left: 4px solid #2196f3;
+    padding: 12px;
+    margin-bottom: 20px;
+    border-radius: 4px;
+}
+
+.form-info p {
+    margin: 5px 0;
+    font-size: 0.9em;
+    color: #1976d2;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 600;
+    color: #555;
+}
+
+.form-group input {
+    width: 100%;
+    padding: 12px;
+    border: 2px solid #ddd;
+    border-radius: 5px;
+    font-size: 1em;
+    transition: border-color 0.3s ease;
+}
+
+.form-group input:focus {
+    outline: none;
+    border-color: #667eea;
+}
+
+.form-group input[readonly] {
+    background: #e9ecef;
+    cursor: not-allowed;
+}
+
+/* Buttons */
+.btn {
+    padding: 12px 25px;
+    border: none;
+    border-radius: 5px;
+    font-size: 1em;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-weight: 600;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.btn-secondary {
+    background: #6c757d;
+    color: white;
+}
+
+.btn-secondary:hover {
+    background: #5a6268;
+}
+
+.btn-cancel {
+    background: #f8f9fa;
+    color: #333;
+    border: 2px solid #ddd;
+}
+
+.btn-cancel:hover {
+    background: #e9ecef;
+}
+
+.form-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.form-actions .btn {
+    flex: 1;
+    min-width: 150px;
+}
+
+/* Booking Status */
+.booking-status {
+    background: #d4edda;
+    border: 2px solid #28a745;
+    padding: 20px;
+    border-radius: 10px;
+    margin-bottom: 15px;
+    animation: slideIn 0.5s ease;
+    flex-shrink: 0;
+}
+
+.booking-status h3 {
+    color: #155724;
+    margin-bottom: 15px;
+    font-size: 1.4em;
+}
+
+.confirmation-details {
+    background: white;
+    padding: 20px;
+    border-radius: 5px;
+    margin-bottom: 15px;
+}
+
+.confirmation-details p {
+    margin: 10px 0;
+    font-size: 1em;
+    color: #333;
+}
+
+.confirmation-details strong {
+    color: #667eea;
+}
+
+/* Queue Status */
+.queue-status {
+    background: #fff3cd;
+    border: 2px solid #ffc107;
+    padding: 20px;
+    border-radius: 10px;
+    margin-bottom: 15px;
+    animation: slideIn 0.5s ease;
+    flex-shrink: 0;
+}
+
+.queue-status h3 {
+    color: #856404;
+    margin-bottom: 15px;
+    font-size: 1.4em;
+}
+
+.queue-details {
+    background: white;
+    padding: 20px;
+    border-radius: 5px;
+    margin-bottom: 15px;
+}
+
+.queue-details p {
+    margin: 10px 0;
+    font-size: 1em;
+    color: #333;
+}
+
+.queue-details strong {
+    color: #856404;
+}
+
+/* Waiting Queue */
+.waiting-queue {
+    background: #fff3cd;
+    padding: 20px;
+    border-radius: 10px;
+    margin-bottom: 15px;
+    border: 2px solid #ffc107;
+    flex-shrink: 0;
+}
+
+.waiting-queue h3 {
+    color: #856404;
+    margin-bottom: 15px;
+    font-size: 1.3em;
+}
+
+.queue-list {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.queue-item {
+    background: white;
+    padding: 15px;
+    border-radius: 5px;
+    margin-bottom: 10px;
+    border-left: 4px solid #ffc107;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.queue-info p {
+    margin: 5px 0;
+    font-size: 0.95em;
+}
+
+.queue-position {
+    background: #ffc107;
+    color: #333;
+    font-weight: bold;
+    padding: 10px 15px;
+    border-radius: 50%;
+    min-width: 40px;
+    text-align: center;
+}
+
+/* Active Bookings */
+.active-bookings {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 10px;
+    margin-bottom: 15px;
+    flex-shrink: 0;
+}
+
+.active-bookings h3 {
+    color: #667eea;
+    margin-bottom: 15px;
+    font-size: 1.3em;
+}
+
+.bookings-list {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.booking-item {
+    background: white;
+    padding: 15px;
+    border-radius: 5px;
+    margin-bottom: 10px;
+    border-left: 4px solid #667eea;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.booking-info p {
+    margin: 5px 0;
+    font-size: 0.95em;
+}
+
+.booking-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.btn-small {
+    padding: 8px 15px;
+    font-size: 0.85em;
+}
+
+.btn-danger {
+    background: #dc3545;
+    color: white;
+}
+
+.btn-danger:hover {
+    background: #c82333;
+}
+
+.no-bookings {
+    text-align: center;
+    color: #999;
+    padding: 20px;
+    font-style: italic;
+}
+
+/* System Info */
+.system-info {
+    background: linear-gradient(135deg, #e3f2fd, #bbdefb);
+    padding: 15px;
+    border-radius: 10px;
+    border: 2px solid #667eea;
+    flex-shrink: 0;
+}
+
+.system-info h3 {
+    color: #667eea;
+    margin-bottom: 15px;
+    font-size: 1.2em;
+}
+
+.info-box p {
+    margin: 8px 0;
+    font-size: 0.9em;
+    color: #333;
+}
+
+/* Toast Notification */
+.toast {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    background: #333;
+    color: white;
+    padding: 15px 25px;
+    border-radius: 5px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    z-index: 1000;
+    animation: slideUp 0.3s ease;
+}
+
+.toast.success {
+    background: #28a745;
+}
+
+.toast.error {
+    background: #dc3545;
+}
+
+.toast.warning {
+    background: #ffc107;
+    color: #333;
+}
+
+/* Utility Classes */
+.hidden {
+    display: none !important;
+}
+
+/* Animations */
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Responsive Design */
+@media (max-width: 992px) {
+    .main-content {
+        flex-direction: column;
+    }
+
+    .left-panel {
+        border-right: none;
+        border-bottom: 2px solid #e0e0e0;
+    }
+
+    .header h1 {
+        font-size: 2em;
+    }
+
+    .reset-btn {
+        position: static;
+        margin-top: 15px;
+    }
+
+    .form-actions .btn {
+        min-width: 100%;
+    }
+}
+
+@media (max-width: 576px) {
+    body {
+        padding: 10px;
+    }
+
+    .left-panel,
+    .right-panel {
+        padding: 20px;
+    }
+
+    .header {
+        padding: 20px;
+    }
+
+    .header h1 {
+        font-size: 1.5em;
+    }
+
+    .restaurant-table {
+        width: 80px;
+        height: 80px;
+    }
+
+    .table-number {
+        font-size: 1.2em;
+    }
+
+    .table-capacity {
+        font-size: 0.75em;
+    }
+}
