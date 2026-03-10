@@ -5,6 +5,7 @@ const API_BASE = '/api';
 let tables = [];
 let bookings = [];
 let queue = [];
+let updaterInterval = null;
 
 // Initialize the application
 document.addEventListener('DOMContentLoaded', function() {
@@ -12,188 +13,107 @@ document.addEventListener('DOMContentLoaded', function() {
     loadBookings();
     loadQueue();
     setupEventListeners();
+    startLiveClock();
+    
+    // Auto-refresh data
+    setInterval(() => {
+        loadTables();
+        loadBookings();
+        loadQueue();
+    }, 5000);
+    
+    // UI Visual Updater (progress bars, elapsed times)
+    setInterval(updateVisuals, 60000);
 });
 
 // Setup event listeners
 function setupEventListeners() {
-    // Book form submission
     document.getElementById('bookForm').addEventListener('submit', handleBooking);
-    
-    // Clear form button
     document.getElementById('clearBtn').addEventListener('click', clearForm);
-    
-    // New booking buttons
-    document.getElementById('newBookingBtn').addEventListener('click', showBookingForm);
-    document.getElementById('newQueueBookingBtn').addEventListener('click', showBookingForm);
-    
-    // Reset system button
     document.getElementById('resetBtn').addEventListener('click', handleReset);
+    
+    // Event delegation for checkout buttons
+    document.addEventListener('click', function(e) {
+        if (e.target.classList.contains('btn-checkout')) {
+            const bookingId = e.target.getAttribute('data-id');
+            if (bookingId) {
+                checkoutTable(bookingId);
+            }
+        }
+    });
 }
 
-// Load all tables from backend
+function startLiveClock() {
+    const clockEl = document.getElementById('liveClock');
+    setInterval(() => {
+        const now = new Date();
+        clockEl.textContent = now.toLocaleTimeString([], { hour12: false });
+    }, 1000);
+}
+
+function updateStats() {
+    const total = tables.length;
+    let available = 0;
+    let occupied = 0;
+    let openSeats = 0;
+    
+    tables.forEach(t => {
+        if (t.status === 'available') {
+            available++;
+            openSeats += t.seating_capacity;
+        } else {
+            occupied++;
+        }
+    });
+    
+    document.getElementById('statTotal').textContent = total;
+    document.getElementById('statAvailable').textContent = available;
+    document.getElementById('statOccupied').textContent = occupied;
+    document.getElementById('statSeats').textContent = openSeats;
+    
+    const floorProgress = document.getElementById('floorProgress');
+    const occPercent = total > 0 ? (occupied / total) * 100 : 0;
+    floorProgress.style.width = `${occPercent}%`;
+    if (occPercent >= 70) {
+        floorProgress.classList.add('warning');
+    } else {
+        floorProgress.classList.remove('warning');
+    }
+}
+
+// Load endpoints
 async function loadTables() {
     try {
         const response = await fetch(`${API_BASE}/tables`);
         const data = await response.json();
-        
         if (data.success) {
             tables = data.tables;
             renderTables();
-        } else {
-            showToast('Failed to load tables', 'error');
+            updateStats();
         }
     } catch (error) {
         console.error('Error loading tables:', error);
-        showToast('Error connecting to server', 'error');
     }
 }
 
-// Render tables in the layout
-function renderTables() {
-    const tableLayout = document.getElementById('tableLayout');
-    tableLayout.innerHTML = '';
-    
-    tables.forEach(table => {
-        const tableElement = document.createElement('div');
-        tableElement.className = `restaurant-table ${table.status}`;
-        
-        tableElement.innerHTML = `
-            <div class="table-number">T${table.table_number}</div>
-            <div class="table-capacity">${table.seating_capacity} seats</div>
-            <div class="table-status">${table.status}</div>
-        `;
-        
-        tableLayout.appendChild(tableElement);
-    });
-}
-
-// Handle booking form submission (Auto-allocate only)
-async function handleBooking(e) {
-    e.preventDefault();
-    
-    const customerName = document.getElementById('customerName').value.trim();
-    const groupSize = parseInt(document.getElementById('groupSize').value);
-    
-    if (!customerName || !groupSize) {
-        showToast('Please fill in all required fields', 'error');
-        return;
-    }
-    
+async function loadBookings() {
     try {
-        const response = await fetch(`${API_BASE}/book`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                customer_name: customerName,
-                group_size: groupSize
-                // No table_id - automatic allocation only
-            })
-        });
-        
+        const response = await fetch(`${API_BASE}/bookings`);
         const data = await response.json();
-        
         if (data.success) {
-            if (data.queued) {
-                // Customer added to queue
-                showToast('Added to waiting queue!', 'warning');
-                showQueueConfirmation({
-                    customer_name: customerName,
-                    group_size: groupSize,
-                    position: data.queue_position
-                });
-            } else {
-                // Table allocated
-                const tablesStr = Array.isArray(data.allocated_tables) ? data.allocated_tables.join(', ') : data.allocated_tables;
-                showToast(`Table ${tablesStr} allocated!`, 'success');
-                showBookingConfirmation({
-                    customer_name: customerName,
-                    group_size: groupSize,
-                    table_number: tablesStr,
-                    seating_capacity: data.table_capacity,
-                    booking_time: new Date().toISOString(),
-                    id: data.booking_id
-                });
-            }
-            clearForm();
-            loadTables();
-            loadBookings();
-            loadQueue();
-        } else {
-            showToast(data.error || 'Booking failed', 'error');
+            bookings = data.bookings;
+            document.getElementById('activeCount').textContent = bookings.length;
+            renderBookings();
         }
     } catch (error) {
-        console.error('Error booking table:', error);
-        showToast('Error connecting to server', 'error');
+        console.error('Error loading bookings:', error);
     }
 }
 
-// Show booking confirmation
-function showBookingConfirmation(booking) {
-    const bookingForm = document.getElementById('bookingForm');
-    const bookingStatus = document.getElementById('bookingStatus');
-    const queueStatus = document.getElementById('queueStatus');
-    const confirmationDetails = document.getElementById('confirmationDetails');
-    
-    bookingForm.classList.add('hidden');
-    bookingStatus.classList.remove('hidden');
-    queueStatus.classList.add('hidden');
-    
-    const bookingTime = new Date(booking.booking_time).toLocaleString();
-    
-    const tableNum = booking.table_number || (Array.isArray(booking.allocated_tables) ? booking.allocated_tables.join(', ') : booking.allocated_tables);
-
-    confirmationDetails.innerHTML = `
-        <p><strong>Customer Name:</strong> ${booking.customer_name}</p>
-        <p><strong>Group Size:</strong> ${booking.group_size} guests</p>
-        <p><strong>Table Number:</strong> ${tableNum || 'N/A'}</p>
-        <p><strong>Table Capacity:</strong> ${booking.seating_capacity} seats</p>
-        <p><strong>Booking Time:</strong> ${bookingTime}</p>
-        <p><strong>Booking ID:</strong> #${booking.id}</p>
-    `;
-}
-
-// Show queue confirmation
-function showQueueConfirmation(queueData) {
-    const bookingForm = document.getElementById('bookingForm');
-    const bookingStatus = document.getElementById('bookingStatus');
-    const queueStatus = document.getElementById('queueStatus');
-    const queueDetails = document.getElementById('queueDetails');
-    
-    bookingForm.classList.add('hidden');
-    bookingStatus.classList.add('hidden');
-    queueStatus.classList.remove('hidden');
-    
-    queueDetails.innerHTML = `
-        <p><strong>Customer Name:</strong> ${queueData.customer_name}</p>
-        <p><strong>Group Size:</strong> ${queueData.group_size} guests</p>
-        <p><strong>Queue Position:</strong> #${queueData.position}</p>
-        <p><strong>Status:</strong> Waiting for table</p>
-        <p style="color: #856404; margin-top: 15px;">
-            <strong>ℹ️ You will be automatically allocated when a suitable table becomes available</strong>
-        </p>
-    `;
-}
-
-// Show booking form (hide confirmations)
-function showBookingForm() {
-    document.getElementById('bookingForm').classList.remove('hidden');
-    document.getElementById('bookingStatus').classList.add('hidden');
-    document.getElementById('queueStatus').classList.add('hidden');
-}
-
-// Clear form
-function clearForm() {
-    document.getElementById('bookForm').reset();
-}
-
-// Load waiting queue
 async function loadQueue() {
     try {
         const response = await fetch(`${API_BASE}/queue`);
         const data = await response.json();
-        
         if (data.success) {
             queue = data.queue;
             renderQueue();
@@ -203,143 +123,238 @@ async function loadQueue() {
     }
 }
 
-// Render queue list
-function renderQueue() {
-    const queueList = document.getElementById('queueList');
+// Renders
+function renderTables() {
+    const layout = document.getElementById('tableLayout');
+    layout.innerHTML = '';
     
-    if (queue.length === 0) {
-        queueList.innerHTML = '<div class="no-bookings">No customers in queue</div>';
-        return;
-    }
-    
-    queueList.innerHTML = queue.map(item => {
-        const arrivalTime = new Date(item.arrival_time).toLocaleTimeString();
-        return `
-            <div class="queue-item">
-                <div class="queue-info">
-                    <p><strong>${item.customer_name}</strong> - ${item.group_size} guests</p>
-                    <p>Arrived at: ${arrivalTime}</p>
-                </div>
-                <div class="queue-position">#${item.position}</div>
-            </div>
-        `;
-    }).join('');
-}
-
-// Load active bookings
-async function loadBookings() {
-    try {
-        const response = await fetch(`${API_BASE}/bookings`);
-        const data = await response.json();
+    tables.forEach(table => {
+        const orb = document.createElement('div');
+        orb.className = `table-orb ${table.status}`;
         
-        if (data.success) {
-            bookings = data.bookings;
-            renderBookings();
+        let guestHtml = '';
+        if (table.status === 'booked' && table.booking) {
+            guestHtml = `<div class="orb-guest" title="${table.booking.customer_name}">${table.booking.customer_name}</div>`;
         }
-    } catch (error) {
-        console.error('Error loading bookings:', error);
-    }
+        
+        orb.innerHTML = `
+            <div class="font-serif orb-id">T${table.table_number}</div>
+            <div class="font-mono orb-seats">${table.seating_capacity} Seats</div>
+            ${guestHtml}
+        `;
+        
+        // Click handler for orbs (toggle)
+        orb.addEventListener('click', () => {
+            if (table.status === 'booked' && table.booking) {
+                // Find corresponding booking to checkout
+                const booking = bookings.find(b => b.customer_name === table.booking.customer_name);
+                if (booking) {
+                    checkoutTable(booking.id.toString());
+                }
+            } else if (table.status === 'available') {
+                // Pre-fill walk-in for this capacity
+                document.getElementById('customerName').value = `Walk-in T${table.table_number}`;
+                document.getElementById('groupSize').value = table.seating_capacity;
+                document.getElementById('customerName').focus();
+            }
+        });
+        
+        layout.appendChild(orb);
+    });
 }
 
-// Render bookings list
 function renderBookings() {
-    const bookingsList = document.getElementById('bookingsList');
-    
+    const list = document.getElementById('bookingsList');
     if (bookings.length === 0) {
-        bookingsList.innerHTML = '<div class="no-bookings">No active bookings</div>';
+        list.innerHTML = '<div class="empty-state">No active bookings</div>';
         return;
     }
     
-    bookingsList.innerHTML = bookings.map(booking => {
-        const bookingTime = new Date(booking.booking_time).toLocaleTimeString();
-        return `
-            <div class="booking-item">
-                <div class="booking-info">
-                    <p><strong>${booking.customer_name}</strong> - ${booking.group_size} guests</p>
-                    <p>Table ${booking.table_number} (${booking.seating_capacity} seats) - ${bookingTime}</p>
+    let html = '';
+    const now = new Date();
+    
+    bookings.forEach(b => {
+        // b.table_ids is array of DB ids. Map to table_number.
+        const tableNums = b.table_ids.map(tid => {
+            const table = tables.find(t => t.id === tid);
+            return table ? table.table_number : tid;
+        });
+        const tableStr = tableNums.join(',');
+        
+        const bTime = new Date(b.booking_time);
+        const timeStr = bTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        
+        const elapsedMins = Math.max(0, Math.floor((now - bTime) / 60000));
+        const progressPercent = Math.min(100, (elapsedMins / 90) * 100);
+        const warningClass = progressPercent >= 70 ? 'warning' : '';
+        
+        html += `
+            <div class="booking-card">
+                <div class="card-top">
+                    <div class="card-mini-orb">
+                        <div class="card-mini-id">T${tableStr}</div>
+                        <div class="font-mono card-mini-seats">${b.group_size}P</div>
+                    </div>
+                    <div class="card-guest-info">
+                        <div class="card-guest-name">${b.customer_name}</div>
+                        <div class="font-mono card-meta">
+                            <span>🕒 ${timeStr}</span>
+                            <span class="card-time-pill elapsed-time" data-time="${b.booking_time}">${elapsedMins}m</span>
+                        </div>
+                    </div>
                 </div>
-                <div class="booking-actions">
-                    <button class="btn btn-small btn-danger" onclick="cancelBooking(${booking.id})">
-                        Cancel
-                    </button>
+                <div class="card-progress-container">
+                    <div class="card-progress-fill progress-dynamic ${warningClass}" data-time="${b.booking_time}" style="width: ${progressPercent}%"></div>
+                </div>
+                <div class="card-bottom">
+                    <span>Seated at ${timeStr}</span>
+                    <button class="btn-checkout" data-id="${b.id}">Checkout</button>
                 </div>
             </div>
         `;
-    }).join('');
+    });
+    
+    list.innerHTML = html;
 }
 
-// Cancel booking
-async function cancelBooking(bookingId) {
-    if (!confirm('Are you sure you want to cancel this booking?')) {
-        return;
-    }
+function updateVisuals() {
+    const now = new Date();
     
-    try {
-        const response = await fetch(`${API_BASE}/cancel/${bookingId}`, {
-            method: 'DELETE'
-        });
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            showToast('Booking cancelled successfully', 'success');
-            loadTables();
-            loadBookings();
+    document.querySelectorAll('.elapsed-time').forEach(el => {
+        const bTime = new Date(el.getAttribute('data-time'));
+        const elapsedMins = Math.max(0, Math.floor((now - bTime) / 60000));
+        el.textContent = `${elapsedMins}m`;
+    });
+    
+    document.querySelectorAll('.progress-dynamic').forEach(el => {
+        const bTime = new Date(el.getAttribute('data-time'));
+        const elapsedMins = Math.max(0, Math.floor((now - bTime) / 60000));
+        const progressPercent = Math.min(100, (elapsedMins / 90) * 100);
+        el.style.width = `${progressPercent}%`;
+        if (progressPercent >= 70) {
+            el.classList.add('warning');
         } else {
-            showToast(data.error || 'Failed to cancel booking', 'error');
+            el.classList.remove('warning');
         }
-    } catch (error) {
-        console.error('Error cancelling booking:', error);
-        showToast('Error connecting to server', 'error');
-    }
+    });
 }
 
-// Reset system
-async function handleReset() {
-    if (!confirm('Are you sure you want to reset all bookings and queue? This will make all tables available.')) {
+function renderQueue() {
+    const list = document.getElementById('queueList');
+    if (queue.length === 0) {
+        list.innerHTML = '<div class="empty-state">Queue is empty</div>';
         return;
     }
     
+    let html = '';
+    queue.forEach(q => {
+        const initial = q.customer_name.charAt(0).toUpperCase();
+        html += `
+            <div class="queue-item">
+                <div class="avatar">${initial}</div>
+                <div class="queue-info">
+                    <div class="queue-name">${q.customer_name}</div>
+                    <div class="font-mono queue-meta">Party of ${q.group_size}</div>
+                </div>
+                <div class="queue-position">#${q.position}</div>
+            </div>
+        `;
+    });
+    list.innerHTML = html;
+}
+
+// Handlers
+async function handleBooking(e) {
+    e.preventDefault();
+    const name = document.getElementById('customerName').value.trim();
+    const size = parseInt(document.getElementById('groupSize').value);
+    
+    if (!name || !size) return;
+    
     try {
-        const response = await fetch(`${API_BASE}/reset`, {
-            method: 'POST'
+        const response = await fetch(`${API_BASE}/book`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ customer_name: name, group_size: size })
         });
         
         const data = await response.json();
-        
         if (data.success) {
-            showToast('System reset successfully', 'success');
+            if (data.queued) {
+                showToast(`Added ${name} to queue at position #${data.queue_position}`, 'info');
+            } else {
+                const tablesArray = Array.isArray(data.allocated_tables) ? data.allocated_tables.join(', ') : data.allocated_tables;
+                showToast(`Seated ${name} at Table ${tablesArray}`, 'success');
+            }
             clearForm();
-            showBookingForm();
             loadTables();
             loadBookings();
             loadQueue();
         } else {
-            showToast(data.error || 'Reset failed', 'error');
+            showToast(data.error || 'Booking failed', 'error');
         }
     } catch (error) {
-        console.error('Error resetting system:', error);
-        showToast('Error connecting to server', 'error');
+        showToast('Connection error', 'error');
     }
 }
 
-// Show toast notification
-function showToast(message, type = 'success') {
-    const toast = document.getElementById('toast');
-    const toastMessage = document.getElementById('toastMessage');
-    
-    toastMessage.textContent = message;
-    toast.className = `toast ${type}`;
-    toast.classList.remove('hidden');
-    
-    setTimeout(() => {
-        toast.classList.add('hidden');
-    }, 3000);
+async function checkoutTable(bookingId) {
+    try {
+        const response = await fetch(`${API_BASE}/cancel/${bookingId}`, { method: 'DELETE' });
+        const data = await response.json();
+        
+        if (data.success) {
+            showToast('Table freed and checkout complete', 'success');
+            if (data.queue_processed && data.queue_processed.allocated > 0) {
+                setTimeout(() => {
+                    showToast(`Auto-seated ${data.queue_processed.allocated} group(s) from queue`, 'info');
+                }, 500);
+            }
+            loadTables();
+            loadBookings();
+            loadQueue();
+        } else {
+            showToast(data.error || 'Checkout failed', 'error');
+        }
+    } catch (error) {
+        showToast('Connection error', 'error');
+    }
 }
 
-// Auto-refresh tables, bookings, and queue every 5 seconds
-setInterval(() => {
-    loadTables();
-    loadBookings();
-    loadQueue();
-}, 5000);
+async function handleReset() {
+    if (!confirm('Reset entire system?')) return;
+    try {
+        const response = await fetch(`${API_BASE}/reset`, { method: 'POST' });
+        const data = await response.json();
+        if (data.success) {
+            showToast('System reset complete', 'success');
+            loadTables();
+            loadBookings();
+            loadQueue();
+        }
+    } catch (error) {
+        showToast('Connection error', 'error');
+    }
+}
+
+function clearForm() {
+    document.getElementById('bookForm').reset();
+}
+
+function showToast(message, type = 'success') {
+    const container = document.getElementById('toastContainer');
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    
+    let icon = '✅';
+    if (type === 'error') icon = '❌';
+    if (type === 'info') icon = 'ℹ️';
+    
+    toast.innerHTML = `<span>${icon}</span> <span>${message}</span>`;
+    container.appendChild(toast);
+    
+    setTimeout(() => {
+        toast.classList.add('hiding');
+        setTimeout(() => toast.remove(), 300);
+    }, 4000);
+}

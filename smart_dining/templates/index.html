@@ -3,122 +3,130 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Skip the Wait - Smart Dining System</title>
+    <title>Smart Dining Dashboard</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
     <div class="container">
         <!-- Header -->
-        <header class="header">
-            <h1>🍽️ Skip the Wait - Smart Dining System</h1>
-            <p>Table Allocation Prototype</p>
-            <button id="resetBtn" class="reset-btn">Reset All Tables</button>
+        <header class="glass-panel header">
+            <div class="header-left">
+                <div class="eyebrow text-sage">
+                    <div class="live-dot"></div>
+                    Smart Dining System
+                </div>
+                <h1 class="header-title font-serif">Smart Dining Dashboard</h1>
+            </div>
+            <div class="header-right">
+                <div class="live-clock font-mono" id="liveClock">00:00:00</div>
+                <button id="resetBtn" class="reset-btn">Reset All</button>
+            </div>
         </header>
 
-        <!-- Main Content - Split Layout -->
-        <div class="main-content">
-            <!-- Left Panel: Table Layout -->
-            <div class="left-panel">
-                <h2>Restaurant Layout</h2>
-                <div class="table-info">
-                    <div class="legend">
-                        <span class="legend-item">
-                            <span class="status-dot available"></span>
-                            Available
-                        </span>
-                        <span class="legend-item">
-                            <span class="status-dot booked"></span>
-                            Booked
-                        </span>
+        <!-- Stats Row -->
+        <div class="stats-row">
+            <div class="glass-panel stat-tile">
+                <div class="stat-label font-mono">Total Tables</div>
+                <div class="stat-value font-serif" id="statTotal">0</div>
+            </div>
+            <div class="glass-panel stat-tile" style="background: rgba(123, 173, 141, 0.1);">
+                <div class="stat-label font-mono text-sage">Available</div>
+                <div class="stat-value font-serif text-sage" id="statAvailable">0</div>
+            </div>
+            <div class="glass-panel stat-tile" style="background: rgba(176, 92, 58, 0.1);">
+                <div class="stat-label font-mono text-terracotta">Occupied</div>
+                <div class="stat-value font-serif text-terracotta" id="statOccupied">0</div>
+            </div>
+            <div class="glass-panel stat-tile">
+                <div class="stat-label font-mono">Open Seats</div>
+                <div class="stat-value font-serif" id="statSeats">0</div>
+            </div>
+        </div>
+
+        <!-- Main Grid -->
+        <div class="main-grid">
+            <!-- Left Column -->
+            <div class="left-col">
+                <!-- Floor Plan -->
+                <div class="glass-panel restaurant-floor">
+                    <div class="panel-header">
+                        <h2 class="panel-title">Restaurant Floor</h2>
+                    </div>
+                    <div id="tableLayout" class="floor-grid">
+                        <!-- Tables will be dynamically rendered here -->
+                    </div>
+                    <div class="occupancy-tracker">
+                        <div class="progress-track">
+                            <div class="progress-fill" id="floorProgress" style="width: 0%"></div>
+                        </div>
                     </div>
                 </div>
-                <div id="tableLayout" class="table-layout">
-                    <!-- Tables will be dynamically rendered here -->
+
+                <!-- Live Occupancy -->
+                <div class="glass-panel">
+                    <div class="panel-header">
+                        <h2 class="panel-title">Live Occupancy</h2>
+                        <div class="pulse-badge">
+                            <div class="live-dot"></div>
+                            <span id="activeCount" class="font-mono">0</span> Active
+                        </div>
+                    </div>
+                    <div id="bookingsList" class="occupancy-grid">
+                        <!-- Booking cards dynamically rendered here -->
+                        <div class="empty-state">No active bookings</div>
+                    </div>
                 </div>
             </div>
 
-            <!-- Right Panel: Booking Details -->
-            <div class="right-panel">
-                <h2>Booking Panel</h2>
-                
-                <!-- Booking Form -->
-                <div id="bookingForm" class="booking-form">
-                    <h3>New Booking (Auto-Allocation Only)</h3>
-                    <form id="bookForm">
+            <!-- Right Column -->
+            <div class="right-col">
+                <!-- Reservation Form -->
+                <div class="glass-panel form-panel">
+                    <div class="panel-header">
+                        <h2 class="panel-title">New Reservation</h2>
+                    </div>
+                    <form id="bookForm" class="form-body">
                         <div class="form-group">
-                            <label for="customerName">Customer Name:</label>
-                            <input type="text" id="customerName" name="customerName" required placeholder="Enter customer name">
+                            <label for="customerName">Guest Name</label>
+                            <input type="text" id="customerName" class="form-input" required placeholder="Enter name">
                         </div>
                         
                         <div class="form-group">
-                            <label for="groupSize">Number of Guests:</label>
-                            <input type="number" id="groupSize" name="groupSize" min="1" max="50" required placeholder="Enter group size">
+                            <label for="groupSize">Party Size</label>
+                            <input type="number" id="groupSize" class="form-input" min="1" max="50" required placeholder="Number of guests">
                         </div>
                         
-                        <div class="form-info">
-                            <p>ℹ️ System will automatically allocate the best suitable table using Best-Fit Algorithm</p>
-                            <p>ℹ️ If restaurant is full, you'll be added to the waiting queue</p>
+                        <div class="info-box">
+                            <div class="info-icon">✨</div>
+                            <div class="info-text">
+                                <strong>Best-Fit Algorithm Active</strong><br>
+                                Assigns smallest available table that fits the party. Groups are queued if full.
+                            </div>
                         </div>
                         
                         <div class="form-actions">
-                            <button type="submit" class="btn btn-primary" id="bookBtn">Submit Booking</button>
-                            <button type="button" class="btn btn-cancel" id="clearBtn">Clear Form</button>
+                            <button type="submit" class="btn btn-primary" id="bookBtn">Confirm Booking</button>
+                            <button type="button" class="btn btn-ghost" id="clearBtn">Clear</button>
                         </div>
                     </form>
                 </div>
 
-                <!-- Booking Status -->
-                <div id="bookingStatus" class="booking-status hidden">
-                    <h3>Booking Confirmation ✓</h3>
-                    <div id="confirmationDetails" class="confirmation-details">
-                        <!-- Confirmation details will be shown here -->
+                <!-- Waiting Queue -->
+                <div class="glass-panel queue-panel">
+                    <div class="panel-header">
+                        <h2 class="panel-title">Waiting Queue</h2>
                     </div>
-                    <button class="btn btn-primary" id="newBookingBtn">New Booking</button>
-                </div>
-
-                <!-- Queue Status -->
-                <div id="queueStatus" class="queue-status hidden">
-                    <h3>⏳ Added to Waiting Queue</h3>
-                    <div id="queueDetails" class="queue-details">
-                        <!-- Queue details will be shown here -->
-                    </div>
-                    <button class="btn btn-primary" id="newQueueBookingBtn">New Booking</button>
-                </div>
-
-                <!-- Waiting Queue List -->
-                <div class="waiting-queue">
-                    <h3>⏳ Waiting Queue</h3>
                     <div id="queueList" class="queue-list">
-                        <!-- Waiting queue will be listed here -->
-                    </div>
-                </div>
-
-                <!-- Active Bookings List -->
-                <div class="active-bookings">
-                    <h3>Active Bookings</h3>
-                    <div id="bookingsList" class="bookings-list">
-                        <!-- Active bookings will be listed here -->
-                    </div>
-                </div>
-
-                <!-- System Information -->
-                <div class="system-info">
-                    <h3>Backend Logic Info</h3>
-                    <div class="info-box">
-                        <p><strong>Algorithm:</strong> FIFO-Compatible Best-Fit</p>
-                        <p><strong>Rule:</strong> Allocates the smallest available table that fits the group</p>
-                        <p><strong>Database:</strong> SQLite</p>
-                        <p><strong>Backend:</strong> Flask (Python)</p>
+                        <!-- Queue items dynamically rendered here -->
+                        <div class="empty-state">Queue is empty</div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Notification Toast -->
-    <div id="toast" class="toast hidden">
-        <span id="toastMessage"></span>
-    </div>
+    <!-- Notification Toast Container -->
+    <div id="toastContainer" class="toast-container"></div>
 
     <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>
