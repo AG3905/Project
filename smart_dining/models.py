@@ -17,18 +17,15 @@ def get_max_consecutive_tables(cursor):
     This prevents memory issues and ensures realistic merging
     
     Logic:
-    - If total tables <= 5: can merge all tables
-    - If total tables 5-10: can merge up to 80% of tables
-    - If total tables > 10: can merge up to 70% of tables
+    - If total tables <= 10: can merge all tables
+    - If total tables > 10: can merge up to 80% of tables
     """
     total_tables = get_total_restaurant_tables(cursor)
     
-    if total_tables <= 5:
+    if total_tables <= 10:
         return total_tables  # Can merge all small restaurants' tables
-    elif total_tables <= 10:
-        return max(2, int(total_tables * 0.8))
     else:
-        return max(2, int(total_tables * 0.7))
+        return max(2, int(total_tables * 0.8))
 
 
 def get_waiting_queue(cursor):

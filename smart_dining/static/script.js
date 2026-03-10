@@ -98,11 +98,23 @@ async function handleBooking(e) {
             if (data.queued) {
                 // Customer added to queue
                 showToast('Added to waiting queue!', 'warning');
-                showQueueConfirmation(data.queue);
+                showQueueConfirmation({
+                    customer_name: customerName,
+                    group_size: groupSize,
+                    position: data.queue_position
+                });
             } else {
                 // Table allocated
-                showToast(`Table ${data.booking.table_number} allocated!`, 'success');
-                showBookingConfirmation(data.booking);
+                const tablesStr = Array.isArray(data.allocated_tables) ? data.allocated_tables.join(', ') : data.allocated_tables;
+                showToast(`Table ${tablesStr} allocated!`, 'success');
+                showBookingConfirmation({
+                    customer_name: customerName,
+                    group_size: groupSize,
+                    table_number: tablesStr,
+                    seating_capacity: data.table_capacity,
+                    booking_time: new Date().toISOString(),
+                    id: data.booking_id
+                });
             }
             clearForm();
             loadTables();
@@ -130,10 +142,12 @@ function showBookingConfirmation(booking) {
     
     const bookingTime = new Date(booking.booking_time).toLocaleString();
     
+    const tableNum = booking.table_number || (Array.isArray(booking.allocated_tables) ? booking.allocated_tables.join(', ') : booking.allocated_tables);
+
     confirmationDetails.innerHTML = `
         <p><strong>Customer Name:</strong> ${booking.customer_name}</p>
         <p><strong>Group Size:</strong> ${booking.group_size} guests</p>
-        <p><strong>Table Number:</strong> ${booking.table_number}</p>
+        <p><strong>Table Number:</strong> ${tableNum || 'N/A'}</p>
         <p><strong>Table Capacity:</strong> ${booking.seating_capacity} seats</p>
         <p><strong>Booking Time:</strong> ${bookingTime}</p>
         <p><strong>Booking ID:</strong> #${booking.id}</p>
