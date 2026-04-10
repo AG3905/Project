@@ -28,7 +28,7 @@ smart_dining/
     └── style.css           # Frontend styling
 ```
 
-<!-- ## How to Run
+## How to Run
 
 ### Option 1: Run from smart_dining directory
 ```bash
@@ -39,7 +39,7 @@ python app.py
 ### Option 2: Run from project root
 ```bash
 python smart_dining/app.py
-``` -->
+```
 
 The application will start on: **http://127.0.0.1:5000**
 
